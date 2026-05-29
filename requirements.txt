@@ -1,3 +1,10 @@
 flask
+flask-login
 firebase-admin
+werkzeug
 requests
+Pillow
+gunicorn
+waitress
+flask-limiter
+pyotp
